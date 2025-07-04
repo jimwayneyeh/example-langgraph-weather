@@ -1,0 +1,35 @@
+import os
+import requests
+from langchain_core.tools import tool
+from dotenv import load_dotenv
+
+load_dotenv()
+
+@tool
+def get_weather(city: str) -> str:
+    """Use this tool to get the current weather for a specific city. It takes a city name as input and returns a sentence describing the weather and temperature."""
+    api_key = os.getenv("OPENWEATHERMAP_API_KEY")
+    if not api_key:
+        return "Error: OpenWeatherMap API key not found."
+    
+    base_url = "http://api.openweathermap.org/data/2.5/weather"
+    params = {
+        "q": city,
+        "appid": api_key,
+        "units": "metric",
+        "lang": "zh_tw"
+    }
+    
+    try:
+        response = requests.get(base_url, params=params)
+        response.raise_for_status()  # Raise an exception for bad status codes
+        data = response.json()
+        
+        description = data["weather"][0]["description"]
+        temp = data["main"]["temp"]
+        
+        return f'{city}的天氣是{description}，氣溫為{temp}°C。'
+    except requests.exceptions.RequestException as e:
+        return f"Error fetching weather data: {e}"
+    except KeyError:
+        return f"Error: Could not parse weather data for {city}."
