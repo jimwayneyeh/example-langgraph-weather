@@ -1,7 +1,6 @@
 import logging
 import sys
-import time
-import asyncio
+
 from fastapi import FastAPI, BackgroundTasks
 from pydantic import BaseModel, Field
 from langgraph.graph import END
@@ -21,30 +20,9 @@ logging.basicConfig(
     ]
 )
 
-# --- Conversation State Management ---
-# This dictionary will store the last access time for each conversation
-conversation_last_access = {}
-CONVERSATION_TIMEOUT_SECONDS = 1800  # 30 minutes
 
-async def cleanup_expired_conversations():
-    """Periodically checks for and removes expired conversations."""
-    while True:
-        await asyncio.sleep(600)  # Check every 10 minutes
-        now = time.time()
-        expired_ids = [
-            conv_id for conv_id, last_access_time in conversation_last_access.items()
-            if now - last_access_time > CONVERSATION_TIMEOUT_SECONDS
-        ]
-        
-        for conv_id in expired_ids:
-            logging.info(f"Removing expired conversation: {conv_id}")
-            # The actual removal from MemorySaver is a bit complex as it's not directly exposed.
-            # For this example, we'll just remove it from our tracking dict.
-            # In a production scenario with RedisSaver, you'd use Redis's TTL feature.
-            if conv_id in conversation_last_access:
-                del conversation_last_access[conv_id]
-                # Note: The state remains in MemorySaver but is now untracked by our cleanup.
-                # A more robust solution would involve a custom Checkpointer or a DB with TTL.
+
+
 
 app = FastAPI(
     title="LangGraph Weather Agent API",
@@ -54,8 +32,8 @@ app = FastAPI(
 
 @app.on_event("startup")
 async def startup_event():
-    """Starts the background cleanup task when the server starts."""
-    asyncio.create_task(cleanup_expired_conversations())
+    """Startup event for the FastAPI application."""
+    pass
 
 class AgentRequest(BaseModel):
     message: str
@@ -69,8 +47,7 @@ def invoke_agent(request: AgentRequest, background_tasks: BackgroundTasks):
     """
     logging.info(f"Received request for conversation {request.conversation_id}: {request.message}")
     
-    # Update the last access time for this conversation
-    conversation_last_access[request.conversation_id] = time.time()
+    
 
     inputs = [HumanMessage(content=request.message)]
     
