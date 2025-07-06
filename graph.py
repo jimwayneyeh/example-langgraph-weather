@@ -11,7 +11,7 @@ from langgraph.prebuilt import chat_agent_executor
 load_dotenv()
 
 # Set up the Gemini model
-llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=os.getenv("GOOGLE_API_KEY"))
+llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key=os.getenv("GOOGLE_API_KEY"))
 
 # Bind the weather tool to the model
 tools = [get_weather]
