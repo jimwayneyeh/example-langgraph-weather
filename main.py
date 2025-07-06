@@ -20,10 +20,6 @@ logging.basicConfig(
     ]
 )
 
-
-
-
-
 app = FastAPI(
     title="LangGraph Weather Agent API",
     description="An API for interacting with a LangGraph agent that can use a weather tool and has conversation memory.",
@@ -46,8 +42,6 @@ def invoke_agent(request: AgentRequest, background_tasks: BackgroundTasks):
     Manages conversation state using a conversation_id.
     """
     logging.info(f"Received request for conversation {request.conversation_id}: {request.message}")
-    
-    
 
     inputs = [HumanMessage(content=request.message)]
     

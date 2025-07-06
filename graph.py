@@ -32,7 +32,7 @@ def agent(state: AgentState):
     """Invokes the agent LLM."""
     # Prepend a system message to guide the agent.
     # Note: In a more complex app, you might add this only once.
-    system_prompt = SystemMessage(content="You are a helpful assistant with access to a weather tool. Use it when asked about the weather.")
+    system_prompt = SystemMessage(content="You are a helpful assistant with access to a weather tool. When using the weather tool, please provide the city name in English. Use it when asked about the weather.")
     messages_with_prompt = [system_prompt] + state["messages"]
     response = llm_with_tools.invoke(messages_with_prompt)
     return {"messages": [response]}
