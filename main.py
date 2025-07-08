@@ -1,7 +1,9 @@
 import logging
 import sys
-
-from fastapi import FastAPI, BackgroundTasks
+import asyncio
+import json
+from fastapi import FastAPI, BackgroundTasks, Request
+from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel, Field
 from langgraph.graph import END
 from graph import app as langgraph_app, checkpointer
@@ -23,7 +25,7 @@ logging.basicConfig(
 app = FastAPI(
     title="LangGraph Weather Agent API",
     description="An API for interacting with a LangGraph agent that can use a weather tool and has conversation memory.",
-    version="1.1.0",
+    version="1.2.1", # Version updated for streaming fix
 )
 
 @app.on_event("startup")
@@ -60,6 +62,47 @@ def invoke_agent(request: AgentRequest, background_tasks: BackgroundTasks):
         "conversation_id": request.conversation_id
     }
 
+async def stream_agent_events(message: str, conversation_id: str):
+    """
+    A generator function that streams agent events for a given request.
+    """
+    inputs = {"messages": [HumanMessage(content=message)]}
+    config = {"configurable": {"thread_id": conversation_id}}
+    
+    logging.info(f"Starting stream for conversation {conversation_id} with message: {message}")
+
+    # astream_events returns an async generator that we can iterate over
+    async for event in langgraph_app.astream_events(inputs, config, version="v1"):
+        kind = event["event"]
+        
+        # We are looking for events where the LLM is streaming back tokens
+        if kind == "on_chat_model_stream":
+            content = event["data"]["chunk"].content
+            if content:
+                # SSE format: data: <json_string>\n\n
+                logging.debug(f"Streaming content: {content}")
+                yield f"data: {json.dumps({'type': 'chunk', 'content': content})}\n\n"
+        elif kind == "on_tool_end":
+            # Also stream back the output of the tool
+            tool_output = event["data"].get("output")
+            if tool_output:
+                logging.info(f"Streaming tool output: {tool_output}")
+                yield f"data: {json.dumps({'type': 'tool_end', 'content': tool_output})}\n\n"
+
+    # Signal the end of the stream
+    logging.info(f"Stream finished for conversation {conversation_id}")
+    yield f"data: {json.dumps({'type': 'stream_end'})}\n\n"
+
+
+@app.get("/stream")
+async def stream(message: str, conversation_id: str):
+    """
+    Endpoint to stream the agent's response using Server-Sent Events.
+    Accepts GET requests with query parameters.
+    """
+    return StreamingResponse(stream_agent_events(message, conversation_id), media_type="text/event-stream")
+
+
 @app.get("/")
-def read_root():
-    return {"status": "LangGraph Weather Agent is running"}
+async def read_root():
+    return FileResponse('templates/index.html')
