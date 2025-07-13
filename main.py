@@ -37,22 +37,22 @@ class AgentRequest(BaseModel):
     message: str
     conversation_id: str = Field(default_factory=lambda: str(uuid4()))
 
-@app.post("/agent-invoke")
-def invoke_agent(request: AgentRequest, background_tasks: BackgroundTasks):
+@app.post("/agent/invoke")
+async def ainvoke_agent(request: AgentRequest):
     """
-    Invokes the LangGraph agent with a user message and returns the final response.
+    Invokes the LangGraph agent asynchronously with a user message and returns the final response.
     Manages conversation state using a conversation_id.
     """
-    logging.info(f"Received request for conversation {request.conversation_id}: {request.message}")
+    logging.info(f"Received async request for conversation {request.conversation_id}: {request.message}")
 
-    inputs = [HumanMessage(content=request.message)]
+    inputs = {"messages": [HumanMessage(content=request.message)]}
     
     # The config now includes the conversation_id to maintain state
     config = {"configurable": {"thread_id": request.conversation_id}}
     
-    response = langgraph_app.invoke({"messages": inputs}, config=config)
+    response = await langgraph_app.ainvoke(inputs, config=config)
     
-    logging.info(f"LangGraph final response for {request.conversation_id}: {response}")
+    logging.info(f"LangGraph async final response for {request.conversation_id}: {response}")
 
     # The final response is the last message from the agent
     final_message = response["messages"][-1]
